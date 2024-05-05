@@ -7,10 +7,13 @@ DB_PASS="togatoga"
 DB_NAME="togatoga"
 
 # Comando para conectar e executar consultas SQL no banco de dados
-MYSQL_COMMAND="mysql -h $DB_HOST -u $DB_USER -p$DB_PASS $DB_NAME -e"
+MYSQL_COMMAND="mysql -h $DB_HOST -u $DB_USER -p$DB_PASS"
+
+# Cria o banco de dados se não existir
+$MYSQL_COMMAND -e "CREATE DATABASE IF NOT EXISTS $DB_NAME;"
 
 # Testa a conexão com o banco de dados
-$MYSQL_COMMAND "SELECT 1;"
+$MYSQL_COMMAND -e "USE $DB_NAME; SELECT 1;"
 
 # Verifica se a conexão foi bem-sucedida
 if [ $? -eq 0 ]; then
@@ -20,8 +23,8 @@ else
     exit 1
 fi
 
-# Cria as tabelas e insere dados nelas (conforme seu script original)
-$MYSQL_COMMAND "
+# Cria as tabelas (conforme o modelo lógico)
+$MYSQL_COMMAND $DB_NAME -e "
 CREATE TABLE IF NOT EXISTS hospitals (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255),
@@ -61,7 +64,11 @@ CREATE TABLE IF NOT EXISTS allocations (
     FOREIGN KEY (patient_id) REFERENCES patients(id),
     FOREIGN KEY (transport_id) REFERENCES transports(id)
 );
+"
 
+# Insere dados nas tabelas (dados de teste)
+
+$MYSQL_COMMAND $DB_NAME -e "
 INSERT INTO hospitals (name, address) VALUES
 ('Hospital A', 'Endereço Hospital A'),
 ('Hospital B', 'Endereço Hospital B');
@@ -88,4 +95,12 @@ INSERT INTO allocations (patient_id, transport_id) VALUES
 (1, 1),
 (2, 1),
 (3, 2);
+"
+
+# Consulta para calcular o número médio de pacientes transportados por veículo por mês
+$MYSQL_COMMAND $DB_NAME -e "
+SELECT COUNT(allocations.id) / COUNT(DISTINCT YEAR(services.date)) / COUNT(DISTINCT MONTH(services.date)) AS media_pacientes_por_veiculo_por_mes
+FROM allocations
+INNER JOIN transports ON allocations.transport_id = transports.id
+INNER JOIN services ON allocations.patient_id = services.id;
 "
